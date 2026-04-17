@@ -92,8 +92,8 @@ app.get('/users', (_: Request, res: Response) => {
   return res.sendFile('users.html', { root: viewsDir });
 });
 
-connect();
 defineAssociations();
+connect();
 // **** Export default **** //
 
 export default app;
