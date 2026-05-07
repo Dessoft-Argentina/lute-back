@@ -13,11 +13,6 @@ export const isAdmin = async (req: IReq, res: IRes, next: INext) => {
         const data = atob(token.split('.')[1]);
         id = JSON.parse(data).data;
         user = await UserRepo.getOne(id);
-        if (user?.isSuperUser) {
-            next();
-        }else {
-            res.status(401).send({message: "Unauthorized"});
-        }
         
     } else {
         res.status(401).send({message: "Unauthorized"});

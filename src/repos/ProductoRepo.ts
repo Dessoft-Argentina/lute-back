@@ -57,8 +57,6 @@ async function add(producto: IProducto): Promise<void> {
       idProducto: producto.idProducto,
       nombre: producto.nombre,
       color: producto.color,
-      almacenamiento: producto.almacenamiento,
-      ram: producto.ram,
       precio: producto.precio,
       stock: producto.stock,
       

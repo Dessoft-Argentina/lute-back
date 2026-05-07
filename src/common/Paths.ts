@@ -2,6 +2,8 @@
  * Express router paths go here.
  */
 
+import Newsteller from "@src/models/Newsteller";
+
 
 export default {
   Base: '/',
@@ -46,6 +48,10 @@ export default {
   Mp: {
     Base: '/pagos',
     Post: '/',
-  }
+  },
+  Newsteller: {
+    Base: '/newsteller',
+    Add: '/',
+  }  
 
 } as const;

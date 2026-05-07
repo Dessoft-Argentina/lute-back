@@ -51,16 +51,13 @@ async function getAll(): Promise<IUser[]> {
 }
 
 async function add(usuario: IUser): Promise<string | void> {
-  const contra = await bcrypt.hash(usuario.contrasenia, 10);
   try {
     await Usuario.create({
       idUsuario: usuario.idUsuario,
       nombre: usuario.nombre,
       apellido: usuario.apellido,
       email: usuario.email,
-      contrasenia: contra,
       direccion: usuario.direccion,
-      isSuperUser: usuario.isSuperUser
     });
   } catch (error) {
     console.error("Error adding usuario:", error);
@@ -70,7 +67,6 @@ async function add(usuario: IUser): Promise<string | void> {
 
 async function update(usuario: IUser): Promise<void> {
   try {
-    usuario.contrasenia = await bcrypt.hash(usuario.contrasenia, 10);
     await Usuario.update(usuario, {
       where: {
         idUsuario: usuario.idUsuario

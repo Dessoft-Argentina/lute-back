@@ -10,6 +10,7 @@ import {authenticateToken}from '@src/middleware/validateToken';
 import MpRoutes from './MpRoutes';
 import { verifyToken } from '@src/middleware/validateToken';
 import { isAdmin } from '@src/middleware/verifyUser';
+import NewstellerRoutes from './NewstellerRoutes';
 
 // **** Variables **** //
 
@@ -25,6 +26,7 @@ const compraRouter = Router();
 const producto_has_compraRouter = Router();
 const authRouter = Router();
 const mpRouter = Router();
+const newstellerRouter = Router();
 
 // Get all users
 userRouter.get(
@@ -162,13 +164,19 @@ mpRouter.post(
 );
 
 
+newstellerRouter.post(
+  Paths.Newsteller.Add,
+  NewstellerRoutes.add,
+);
+
 // Add Routers
 apiRouter.use(Paths.Users.Base, userRouter);
 apiRouter.use(Paths.Compras.Base, compraRouter);
 apiRouter.use(Paths.Productos.Base, productoRouter);
 apiRouter.use(Paths.Producto_has_Compra.Base, producto_has_compraRouter);
 apiRouter.use(Paths.Auth.Base, authRouter);
-apiRouter.use(Paths.Mp.Base, mpRouter)
+apiRouter.use(Paths.Mp.Base, mpRouter);
+apiRouter.use(Paths.Newsteller.Base, newstellerRouter);
 
 
 // **** Export default **** //
