@@ -23,6 +23,7 @@ import { NodeEnvs } from '@src/common/misc';
 
 import { defineAssociations } from '@src/models/sequalize';
 import { connect } from './database';
+import { env } from 'process';
 
 
 
@@ -38,7 +39,38 @@ const cors = require('cors');
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(cookieParser(EnvVars.CookieProps.Secret));
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000', // Adjust this to your frontend's origin
+  credentials: true, // Allow cookies to be sent
+}));
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+
+        connectSrc: [
+          "'self'",
+          "http://localhost:4000",
+          "http://localhost:3000",
+        ],
+
+        imgSrc: ["'self'", "data:", "blob:"],
+
+        mediaSrc: [
+          "'self'",
+          "blob:",
+          "data:",
+        ],
+
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
+  })
+);
 
 // Show routes called in console during development
 if (EnvVars.NodeEnv === NodeEnvs.Dev.valueOf()) {
@@ -47,7 +79,33 @@ if (EnvVars.NodeEnv === NodeEnvs.Dev.valueOf()) {
 
 // Security
 if (EnvVars.NodeEnv === NodeEnvs.Production.valueOf()) {
-  app.use(helmet());
+  app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+
+        connectSrc: [
+          "'self'",
+          "http://localhost:4000",
+          "http://localhost:3000",
+        ],
+
+        imgSrc: ["'self'", "data:", "blob:"],
+
+        mediaSrc: [
+          "'self'",
+          "blob:",
+          "data:",
+        ],
+
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
+  })
+);
 }
 
 // Add APIs, must be after middleware

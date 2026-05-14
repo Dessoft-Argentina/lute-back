@@ -2,16 +2,17 @@
 import {Newsteller, INewsteller } from "@src/models/Newsteller";
 
 async function add(newsteller: INewsteller): Promise<void> {
+  console.log("Adding newsteller:", newsteller);
   try {
     await Newsteller.create({
       id: newsteller.id,
         email: newsteller.email,
         nombre: newsteller.nombre,
-        apellido: newsteller.apellido
+
     });
 
   } catch (error) {
-    console.error("Error adding compra:", error);
+    console.error("Error adding to newsteller:", error);
 
   }
 }

@@ -7,7 +7,6 @@ export interface INewsteller {
   id: number;
   email: string;
   nombre: string;
-  apellido: string;
 
 }
 
@@ -19,10 +18,6 @@ export const Newsteller = sequelize.define('Newsteller', {
     autoIncrement: true
   },
   nombre: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  apellido: {
     type: DataTypes.STRING,
     allowNull: false
   },
@@ -41,14 +36,12 @@ export const Newsteller = sequelize.define('Newsteller', {
 function newNewsteller(
   id: number,
   nombre: string,
-  apellido: string,
   email: string,
 
 ): INewsteller {
   return {
       id: (id ?? 0),
       nombre: (nombre ?? ''),
-      apellido: (apellido ?? ''),
       email: (email ?? ''),
 
   };
