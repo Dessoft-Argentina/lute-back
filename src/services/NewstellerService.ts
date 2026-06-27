@@ -1,7 +1,7 @@
 import { INewsteller } from "@src/models/Newsteller";
 import NewstellerRepo from "@src/repos/NewstellerRepo";
 
-function addOne(newsteller: INewsteller): Promise<void> {
+function addOne(newsteller: INewsteller): Promise<boolean> {
   return NewstellerRepo.add(newsteller);
 }
 

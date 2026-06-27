@@ -1,88 +1,98 @@
-import MercadoPagoConfig, { Payment, Preference } from 'mercadopago';
+import MercadoPagoConfig, { Payment } from 'mercadopago';
 import { IReq, IRes } from './types/express/misc';
-import ProductoRepo from '@src/repos/ProductoRepo';
-import CompraRepo from '@src/repos/CompraRepo';
+import ProductRepo from '@src/repos/ProductRepo';
+import OrderRepo from '@src/repos/OrderRepo';
+import PaymentRepo from '@src/repos/PaymentRepo';
+import MailService from '@src/services/MailService';
+import mpSignature from '@src/util/mpSignature';
+import tokenUtil from '@src/util/token';
 import { ICompra } from '@src/models/Compra';
 
+const accessToken = process.env.MP_ACCESS_TOKEN;
+if (!accessToken) {
+  console.error('MP_ACCESS_TOKEN no configurado');
+}
+const client = new MercadoPagoConfig({ accessToken: accessToken ?? '' });
 
+async function webhooks(req: IReq, res: IRes) {
+  const webhookSecret = process.env.MP_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const rawBody = (req as any).rawBody || JSON.stringify(req.body);
+    const headers = {
+      'x-signature': req.headers['x-signature'] as string | undefined,
+      'x-request-id': req.headers['x-request-id'] as string | undefined,
+    };
 
-const client = new MercadoPagoConfig({accessToken: 'APP_USR-7485294126253700-111121-5541da55ee4820f5f9f205636e109241-2091805520'})
-
-//TESTUSER29179696
-//Jb7lv1GHZw
-
-//TESTUSER14613138
-//nJoAJKRlyP
-
-async function registrarCompra(req: IReq, res: IRes) {
-  const body = req.body as unknown as {items: [], id: number};
-  const cartItems = body.items;
-  const id = body.id;
-
-
-  const preference = new Preference(client)
-
-  if(Array.isArray(cartItems)) {
-    const arrangedItems= cartItems.map((item: any) => ({
-        id: item.id,
-        title: "Ciros",
-        quantity: item.quantity,
-        unit_price: item.price
-    }));
-
-
-    let pr = await preference.create({
-      body:{
-        items: arrangedItems,
-        back_urls: {
-          success: 'https://cjdfc5r5-4200.brs.devtunnels.ms/',
-          failure: 'http://localhost:3000/failure',
-          pending: 'http://localhost:3000/pending'
-        },
-        auto_return: 'all',
-        metadata: {
-          userId: id
-        },
-      },
-      
-    });
-
-
-    
-    await CompraRepo.add({idCompra: (pr.collector_id)!, fecha: new Date(pr.date_created as string), Usuario_idUsuario: pr.metadata.userId} as ICompra);
-
-    const url = pr.init_point!
-    return res.send({url});
+    if (!mpSignature.verifySignature(rawBody, headers, webhookSecret)) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
   }
 
-  
+  const mpPaymentId = (req.body as unknown as { data: { id: string } }).data.id;
+  if (!mpPaymentId) {
+    return res.status(400).json({ error: 'Missing payment id' });
+  }
+
+  const existing = await PaymentRepo.getByMpPaymentId(mpPaymentId);
+  if (existing) {
+    return res.status(200).json({ status: 'already_processed' });
+  }
+
+  await handlePayment(mpPaymentId);
+
+  return res.status(200).json({ status: 'processed' });
 }
 
+async function handlePayment(mpPaymentId: string): Promise<void> {
+  const paymentData = await new Payment(client).get({ id: mpPaymentId });
 
-async function webhooks(req: IReq) {
-  const id = (req.body as unknown as { data: { id: string } }).data.id;
-  await add(id);
+  const externalRef = paymentData.external_reference as string | undefined;
+  let compra: ICompra | null = null;
 
-  return new Response(null, {status: 200});
-}
+  if (externalRef) {
+    compra = await OrderRepo.getById(Number(externalRef));
+  }
 
-async function add(id: string): Promise<void> {
-  const payment = await new Payment(client).get({id});
+  if (!compra) return;
 
+  const amount = paymentData.transaction_amount
+    ? Number(paymentData.transaction_amount)
+    : null;
+  const preferenceId = (paymentData as unknown as Record<string, unknown>).preference_id as string | undefined;
 
-  if(payment.status === 'approved') {
-    if(await CompraRepo.getOne((payment.collector_id as number))) {
-      console.log('Compra aprobada');
-      await CompraRepo.update({idCompra: payment.id as number, fecha: new Date(payment.date_created as string), status: payment.status, Usuario_idUsuario: payment.metadata.userId} as ICompra, (payment.collector_id as number));
-      payment.additional_info?.items?.map(async (item: any) => {
-        await ProductoRepo.descontarStock(item.id, item.quantity);
-      });
+  await PaymentRepo.create({
+    orderId: compra.idCompra,
+    mpPaymentId,
+    mpPreferenceId: preferenceId || null,
+    status: paymentData.status as string || 'unknown',
+    amount,
+    processedAt: new Date(),
+  } as any);
+
+  const paymentStatus = paymentData.status as string;
+
+  if (paymentStatus === 'approved') {
+    const trackingToken = tokenUtil.generateTrackingToken();
+    await OrderRepo.setTrackingToken(compra.idCompra, trackingToken);
+    await OrderRepo.updatePaymentStatus(compra.idCompra, 'approved');
+
+    const updatedCompra = await OrderRepo.getById(compra.idCompra);
+    if (updatedCompra) {
+      await MailService.sendOrderConfirmation(updatedCompra);
     }
+  } else if (['rejected', 'refunded', 'cancelled'].includes(paymentStatus)) {
+    if (externalRef && compra.items && compra.items.length > 0) {
+      const restoreItems = compra.items.map((i: any) => ({
+        variantId: i.variantId,
+        quantity: i.quantity,
+      }));
+      await ProductRepo.restoreStock(restoreItems);
+    }
+
+    await OrderRepo.updatePaymentStatus(compra.idCompra, paymentStatus);
   }
 }
 
 export default {
-    registrarCompra,
-    webhooks
+  webhooks,
 } as const;
-  

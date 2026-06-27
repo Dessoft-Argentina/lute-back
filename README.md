@@ -1,43 +1,47 @@
-## About
+# Backend de Lute — paquete opencode
 
-This project was created with [express-generator-typescript](https://github.com/seanpmaxwell/express-generator-typescript).
+Documentación spec-driven y configuración de `opencode` para continuar el desarrollo del
+**backend** de la tienda Lute (Express + TypeScript + Sequelize/PostgreSQL). Documenta **qué**
+construir, **cómo** y **en qué orden**, integrándose con el código ya existente (conexión a base,
+Mercado Pago básico, newsletter).
 
+## Contenido
 
-## Available Scripts
+```
+back/
+├── opencode.json              # configuración de opencode (modelo placeholder; ajustar al equipo)
+├── AGENTS.md                  # contexto permanente del backend (leer primero)
+├── ASSUMPTIONS.md             # suposiciones tomadas ante información faltante
+├── docs/
+│   ├── 00-overview/           # arquitectura, stack, sistema de drops, modelo de datos, baseline de seguridad
+│   └── stages/                # 01..07: requirements.md + design.md + tasks.md por etapa
+└── .opencode/
+    ├── command/               # comandos reutilizables (stage, security-audit, test, plan-stage)
+    └── agent/                 # agentes (plan: solo lectura; security: pentester)
+```
 
-### `npm run dev`
+## Puesta en marcha
 
-Run the server in development mode.
+1. Copiá el contenido de esta carpeta a la **raíz del repositorio del backend** (`lute-back`), de
+   modo que `opencode.json`, `AGENTS.md` y `docs/` queden junto a `package.json`.
+2. Editá `opencode.json` → `model` y ajustalo al proveedor/modelo del equipo (`opencode models`).
+3. Variables de entorno: completá `env/development.env` (y un `env/production.env`) con
+   `DB_*`, `JWT_SECRET`, `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, etc. (ver `ASSUMPTIONS.md` y
+   `docs/00-overview/security-baseline.md`). **Nunca** commitear secretos.
+4. Abrí opencode en la raíz del repo.
 
-### `npm test`
+## Flujo de trabajo con opencode
 
-Run all unit-tests with jest.
+- `/plan-stage 01-catalogo-y-producto` — el agente de planificación (solo lectura) propone el plan.
+- `/stage 01-catalogo-y-producto` — implementa la etapa siguiendo su `tasks.md`, tarea por tarea,
+  corriendo los tests de cada tarea antes de avanzar.
+- `/security-audit` — el subagente de seguridad audita la etapa actual con mentalidad adversarial.
+- `/test` — ejecuta la suite de tests (Jest).
 
-### `npm test -- --testFile="name of test file" (i.e. --testFile=Users).`
+## Orden de las etapas
 
-Run a single unit-test.
+01 → 02 → 03 → 04 → 05 → 06 → 07. El modelo de datos y los contratos de API se definen antes que la
+lógica que los consume. La etapa 07 (seguridad/pentesting) es transversal: además de su etapa
+dedicada al final, cada etapa termina con una tarea de pruebas adversariales.
 
-### `npm run test:no-reloading`
-
-Run all unit-tests without hot-reloading.
-
-### `npm run lint`
-
-Check for linting errors.
-
-### `npm run build`
-
-Build the project for production.
-
-### `npm start`
-
-Run the production build (Must be built first).
-
-### `npm start -- --env="name of env file" (default is production).`
-
-Run production build with a different env file.
-
-
-## Additional Notes
-
-- If `npm run dev` gives you issues with bcrypt on MacOS you may need to run: `npm rebuild bcrypt --build-from-source`. .
+Ver el `README.md` de nivel superior del `.zip` para la relación con el paquete del **frontend**.

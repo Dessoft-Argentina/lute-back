@@ -1,0 +1,49 @@
+{
+  // Configuración de opencode para el BACKEND de Lute (Express + TypeScript + PostgreSQL).
+  // Esquema oficial: https://opencode.ai/config.json
+  //
+  // Los AGENTES y COMANDOS se definen de forma idiomática como archivos markdown en
+  // `.opencode/agent/*.md` y `.opencode/command/*.md` (opencode los descubre automáticamente).
+  // Este archivo concentra la configuración GLOBAL: modelo, instrucciones y permisos.
+  "$schema": "https://opencode.ai/config.json",
+
+  // Ajustá el modelo al que tengas disponible en tu proveedor (formato "proveedor/modelo").
+  "model": "anthropic/claude-sonnet-4-5",
+
+  // Contexto que opencode carga en cada sesión. AGENTS.md da el panorama del repo;
+  // los docs de overview fijan arquitectura/seguridad/datos; cada etapa aporta requisitos y diseño.
+  "instructions": [
+    "AGENTS.md",
+    "docs/00-overview/*.md",
+    "docs/stages/**/requirements.md",
+    "docs/stages/**/design.md"
+  ],
+
+  // Permisos por defecto (mentalidad de mínimo privilegio). Los agentes pueden endurecer/aflojar
+  // esto en su propio frontmatter (p. ej. el agente `plan` deniega edición).
+  "permission": {
+    "edit": "allow",
+    "webfetch": "allow",
+    "bash": {
+      "npm *": "allow",
+      "npx *": "allow",
+      "node *": "allow",
+      "tsc*": "allow",
+      "jest*": "allow",
+      "git status": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git add*": "allow",
+      "git commit*": "allow",
+      "git checkout*": "allow",
+      "git branch*": "allow",
+      "git push*": "ask",
+      "git reset*": "ask",
+      "rm *": "ask",
+      "psql*": "ask",
+      "dropdb*": "ask",
+      "sequelize*": "ask",
+      "*": "ask"
+    }
+  }
+}

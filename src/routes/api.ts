@@ -1,184 +1,80 @@
 import { Router } from 'express';
-import jetValidator from 'jet-validator';
 import Paths from '@src/common/Paths';
-import CompraRoutes from '@src/routes/CompraRoutes';
-import ProductoRoutes from '@src/routes/ProductoRoutes';
-import UserRoutes from './UserRoutes';
-import Producto_has_ComprasRoutes  from './Producto_has_CompraRoutes';
-import AuthRoutes from './AuthRoutes';
-import {authenticateToken}from '@src/middleware/validateToken';
 import MpRoutes from './MpRoutes';
-import { verifyToken } from '@src/middleware/validateToken';
-import { isAdmin } from '@src/middleware/verifyUser';
 import NewstellerRoutes from './NewstellerRoutes';
+import ProductsRoutes from './ProductsRoutes';
+import CartRoutes from './CartRoutes';
+import CheckoutRoutes from './CheckoutRoutes';
+import TrackingRoutes from './TrackingRoutes';
+import AdminAuthRoutes from './AdminAuthRoutes';
+import DropRoutes from './DropRoutes';
+import { generalRateLimit, strictRateLimit } from '@src/middleware/rateLimit';
 
-// **** Variables **** //
+const apiRouter = Router();
 
-const apiRouter = Router(),
-  validate = jetValidator();
-
-
-// ** Add UserRouter ** //
-
-const userRouter = Router();
-const productoRouter = Router();
-const compraRouter = Router();
-const producto_has_compraRouter = Router();
-const authRouter = Router();
+const productsRouter = Router();
 const mpRouter = Router();
 const newstellerRouter = Router();
+const cartRouter = Router();
+const variantRouter = Router();
+const checkoutRouter = Router();
 
-// Get all users
-userRouter.get(
-  Paths.Users.Get,
-  UserRoutes.getAll,
+// New public catalog routes (slug-based, drop-aware)
+productsRouter.get(
+  Paths.Products.List,
+  ProductsRoutes.getAll,
 );
 
-userRouter.get(
-  Paths.Users.GetOne,
-  UserRoutes.getOne,
+productsRouter.get(
+  Paths.Products.Detail,
+  ProductsRoutes.getOne,
 );
 
-// Add one user
-userRouter.post(
-  Paths.Users.Add,
-  UserRoutes.add,
-);
-
-// Update one user
-userRouter.put(
-  Paths.Users.Update,
-  authenticateToken,
-  UserRoutes.update,
-);
-
-// Delete one user
-userRouter.delete(
-  Paths.Users.Delete,
-  UserRoutes.delete,
-);
-
-// Get all users
-compraRouter.get(
-  Paths.Compras.Get,
-  CompraRoutes.getAll,
-);
-
-compraRouter.get(
-  Paths.Compras.GetOne,
-  CompraRoutes.getOne,
-);
-
-// Add one user
-compraRouter.post(
-  Paths.Compras.Add,
-  CompraRoutes.add,
-);
-
-// Update one user
-compraRouter.put(
-  Paths.Compras.Update,
-  CompraRoutes.update,
-);
-
-// Delete one user
-compraRouter.delete(
-  Paths.Compras.Delete,
-  CompraRoutes.delete,
-);
-
-
-
-productoRouter.get(
-  Paths.Productos.Get,
-  ProductoRoutes.getAll,
-);
-
-productoRouter.get(
-  Paths.Productos.GetOne,
-  ProductoRoutes.getOne,
-);
-
-productoRouter.post(
-  Paths.Productos.Add,
-  ProductoRoutes.add,
-);
-
-productoRouter.put(
-  Paths.Productos.idBySpecs,
-  ProductoRoutes.idBySpecs,
-);
-
-productoRouter.put(
-  Paths.Productos.updateStock,
-  authenticateToken,
-  isAdmin,
-  ProductoRoutes.updateStock,
-);
-
-productoRouter.delete(
-  Paths.Productos.Delete,
-  ProductoRoutes.delete,
-);
-
-producto_has_compraRouter.get(
-  Paths.Producto_has_Compra.Get,
-  Producto_has_ComprasRoutes.getAll,
-);
-
-producto_has_compraRouter.get(
-  Paths.Producto_has_Compra.GetOne,
-  Producto_has_ComprasRoutes.getOne,
-);
-
-producto_has_compraRouter.post(
-  Paths.Producto_has_Compra.Add,
-  Producto_has_ComprasRoutes.add,
-);
-
-
-producto_has_compraRouter.delete(
-  Paths.Producto_has_Compra.Delete,
-  Producto_has_ComprasRoutes.delete,
-);
-
-authRouter.post(
-  Paths.Auth.Login,
-  AuthRoutes.login,
-);
-
-authRouter.post(
-  Paths.Auth.Verify,
-  verifyToken,
-);
-
-//MERCADO PAGO
-mpRouter.put(
-  Paths.Mp.Post,
-  MpRoutes.registrarCompra,
-);
-
+// Mercado Pago webhook (POST only; PUT legacy removed)
 mpRouter.post(
   Paths.Mp.Post,
   MpRoutes.webhooks,
 );
 
-
+// Newsletter (public — landing page "no-drop")
 newstellerRouter.post(
   Paths.Newsteller.Add,
+  generalRateLimit,
   NewstellerRoutes.add,
 );
 
-// Add Routers
-apiRouter.use(Paths.Users.Base, userRouter);
-apiRouter.use(Paths.Compras.Base, compraRouter);
-apiRouter.use(Paths.Productos.Base, productoRouter);
-apiRouter.use(Paths.Producto_has_Compra.Base, producto_has_compraRouter);
-apiRouter.use(Paths.Auth.Base, authRouter);
+// Cart routes (stage 02)
+cartRouter.post(
+  Paths.Cart.Validate,
+  generalRateLimit,
+  CartRoutes.validateCart,
+);
+
+// Variant stock endpoint
+variantRouter.get(
+  Paths.Variants.Stock,
+  generalRateLimit,
+  CartRoutes.getVariantStock,
+);
+
+// Checkout endpoints (stage 03)
+checkoutRouter.post(
+  Paths.Checkout.Create,
+  strictRateLimit,
+  CheckoutRoutes.createCheckout,
+);
+
+// Admin auth (stage 05)
+apiRouter.use('/admin/auth', generalRateLimit, AdminAuthRoutes);
+
+// Mount routers
+apiRouter.use(Paths.Products.Base, productsRouter);
 apiRouter.use(Paths.Mp.Base, mpRouter);
 apiRouter.use(Paths.Newsteller.Base, newstellerRouter);
-
-
-// **** Export default **** //
+apiRouter.use(Paths.Cart.Base, cartRouter);
+apiRouter.use(Paths.Variants.Base, variantRouter);
+apiRouter.use(Paths.Checkout.Base, checkoutRouter);
+apiRouter.use(Paths.Orders.Base, TrackingRoutes);
+apiRouter.use(Paths.Drops.Base, DropRoutes);
 
 export default apiRouter;

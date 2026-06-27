@@ -1,15 +1,36 @@
+// eslint-disable-next-line node/no-extraneous-import
 import jwt from 'jsonwebtoken';
-import { resolve } from 'path';
 
-export function generateToken(data: any): Promise<string>{
-    return new Promise((resolve, reject) => {
-        return jwt.sign({data}, "prusci", { expiresIn: "1d" }, (err, token: string | undefined) => {
-            if (err) reject (err);
-            if (!token) 
-                reject("Token not generated");
-            else
-                resolve(token);
-        });
-    });
+const getSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET no configurado');
+  }
+  return secret;
+};
+
+export function generateToken(data: Record<string, unknown>): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const secret = getSecret();
+    jwt.sign(
+      { data },
+      secret,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '15m' },
+      (err, token) => {
+        if (err) return reject(err);
+        if (!token) return reject(new Error('Token not generated'));
+        resolve(token);
+      },
+    );
+  });
 }
 
+export function verifyToken(token: string): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const secret = getSecret();
+    jwt.verify(token, secret, (err, decoded) => {
+      if (err) return reject(err);
+      resolve(decoded);
+    });
+  });
+}

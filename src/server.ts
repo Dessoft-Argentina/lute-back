@@ -23,7 +23,6 @@ import { NodeEnvs } from '@src/common/misc';
 
 import { defineAssociations } from '@src/models/sequalize';
 import { connect } from './database';
-import { env } from 'process';
 
 
 
@@ -39,79 +38,49 @@ const cors = require('cors');
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(cookieParser(EnvVars.CookieProps.Secret));
+const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim());
+
 app.use(cors({
-  origin: 'http://localhost:3000', // Adjust this to your frontend's origin
-  credentials: true, // Allow cookies to be sent
+  origin: corsOrigins,
+  credentials: true,
 }));
 
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  connectSrc: ["'self'", ...corsOrigins],
+  imgSrc: ["'self'", "data:", "blob:"],
+  mediaSrc: ["'self'", "blob:", "data:"],
+  scriptSrc: ["'self'"],
+  styleSrc: ["'self'"],
+};
 
-        connectSrc: [
-          "'self'",
-          "http://localhost:4000",
-          "http://localhost:3000",
-        ],
-
-        imgSrc: ["'self'", "data:", "blob:"],
-
-        mediaSrc: [
-          "'self'",
-          "blob:",
-          "data:",
-        ],
-
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-
-        styleSrc: ["'self'", "'unsafe-inline'"],
-      },
-    },
-  })
-);
+app.use(helmet({ contentSecurityPolicy: { directives: cspDirectives } }));
 
 // Show routes called in console during development
 if (EnvVars.NodeEnv === NodeEnvs.Dev.valueOf()) {
   app.use(morgan('dev'));
 }
 
-// Security
-if (EnvVars.NodeEnv === NodeEnvs.Production.valueOf()) {
-  app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-
-        connectSrc: [
-          "'self'",
-          "http://localhost:4000",
-          "http://localhost:3000",
-        ],
-
-        imgSrc: ["'self'", "data:", "blob:"],
-
-        mediaSrc: [
-          "'self'",
-          "blob:",
-          "data:",
-        ],
-
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-
-        styleSrc: ["'self'", "'unsafe-inline'"],
-      },
-    },
-  })
-);
-}
+// Capture raw body for webhook signature verification
+app.use('/pagos', (req: Request, _res: Response, next: NextFunction) => {
+  if (req.method === 'POST') {
+    let data = '';
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      (req as any).rawBody = data;
+      next();
+    });
+  } else {
+    next();
+  }
+});
 
 // Add APIs, must be after middleware
 app.use(Paths.Base, BaseRouter);
 
-// Add error handler
+// Add error handler (endurecido, corrige S11: no filtrar internals)
 app.use((
   err: Error,
   _: Request,
@@ -125,29 +94,19 @@ app.use((
   let status = HttpStatusCodes.BAD_REQUEST;
   if (err instanceof RouteError) {
     status = err.status;
+    return res.status(status).json({ error: err.message });
   }
-  return res.status(status).json({ error: err.message });
+  return res.status(status).json({ error: 'Error interno del servidor' });
 });
 
-
-// **** Front-End Content **** //
-
-// Set views directory (html)
-const viewsDir = path.join(__dirname, 'views');
-app.set('views', viewsDir);
 
 // Set static directory (js and css).
 const staticDir = path.join(__dirname, 'public');
 app.use(express.static(staticDir));
 
-// Nav to users pg by default
+// Health check
 app.get('/', (_: Request, res: Response) => {
-  return res.redirect('/users');
-});
-
-// Redirect to login if not logged in.
-app.get('/users', (_: Request, res: Response) => {
-  return res.sendFile('users.html', { root: viewsDir });
+  return res.json({ status: 'ok' });
 });
 
 connect();
