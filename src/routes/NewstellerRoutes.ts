@@ -21,7 +21,6 @@ async function add(req: IReq<Record<string, unknown>>, res: IRes) {
   }
 
   const name = typeof nombre === 'string' ? nombre.trim().slice(0, 255) : '';
-
   const created = await NewstellerService.addOne({
     id: 0,
     email: trimmedEmail,
